@@ -1,0 +1,264 @@
+    Blocking waiting for file lock on build directory
+   Compiling num-traits v0.2.19
+   Compiling iana-time-zone v0.1.63
+   Compiling chrono v0.4.41
+   Compiling Projector v0.1.0 (/Users/dovcaspi/develop/Projector)
+error[E0432]: unresolved import `super::QuestionGenerator`
+  --> src/wizard/session.rs:10:60
+   |
+10 | ...estion, QuestionGenerator, Template};
+   |            ^^^^^^^^^^^^^^^^^ no `QuestionGenerator` in `wizard`
+   |
+   = help: consider importing this struct instead:
+           crate::wizard::question::QuestionGenerator
+error[E0432]: unresolved import `super::QuestionType`
+  --> src/wizard/llm.rs:14:32
+   |
+14 | use super::{Context, Question, QuestionType};
+   |                                ^^^^^^^^^^^^
+   |                                |
+   |                                no `QuestionType` in `wizard`
+   |                                help: a similar name exists in the module: `Question`
+   |
+   = help: consider importing this enum through its public re-export instead:
+           crate::QuestionType
+error[E0432]: unresolved imports `super::Persona`, `super::QuestionType`
+ --> src/wizard/template.rs:9:22
+  |
+9 | use super::{Context, Persona, Question, QuestionType};
+  |                      ^^^^^^^            ^^^^^^^^^^^^
+  |                      |                  |
+  |                      |                  no `QuestionType` in `wizard`
+  |                      |                  help: a similar name exists in the module: `Question`
+  |                      no `Persona` in `wizard`
+  |
+  = help: consider importing this enum through its public re-export instead:
+          crate::Persona
+  = help: consider importing this enum through its public re-export instead:
+          crate::QuestionType
+error[E0433]: failed to resolve: could not find `Persona` in `super`
+  --> src/wizard/llm.rs:86:20
+   |
+86 |             super::Persona::Default => {
+   |                    ^^^^^^^ could not find `Persona` in `super`
+   |
+help: consider importing this enum through its public re-export
+   |
+6  + use crate::Persona;
+   |
+help: if you import `Persona`, refer to it directly
+   |
+86 -             super::Persona::Default => {
+86 +             Persona::Default => {
+   |
+error[E0433]: failed to resolve: could not find `Persona` in `super`
+  --> src/wizard/llm.rs:91:20
+   |
+91 |             super::Persona::ProductManager => {
+   |                    ^^^^^^^ could not find `Persona` in `super`
+   |
+help: consider importing this enum through its public re-export
+   |
+6  + use crate::Persona;
+   |
+help: if you import `Persona`, refer to it directly
+   |
+91 -             super::Persona::ProductManager => {
+91 +             Persona::ProductManager => {
+   |
+error[E0433]: failed to resolve: could not find `Persona` in `super`
+  --> src/wizard/llm.rs:96:20
+   |
+96 |             super::Persona::LlmArchitect => {
+   |                    ^^^^^^^ could not find `Persona` in `super`
+   |
+help: consider importing this enum through its public re-export
+   |
+6  + use crate::Persona;
+   |
+help: if you import `Persona`, refer to it directly
+   |
+96 -             super::Persona::LlmArchitect => {
+96 +             Persona::LlmArchitect => {
+   |
+error[E0433]: failed to resolve: could not find `Persona` in `super`
+   --> src/wizard/llm.rs:101:20
+    |
+101 |             super::Persona::UxDesigner => {
+    |                    ^^^^^^^ could not find `Persona` in `super`
+    |
+help: consider importing this enum through its public re-export
+    |
+6   + use crate::Persona;
+    |
+help: if you import `Persona`, refer to it directly
+    |
+101 -             super::Persona::UxDesigner => {
+101 +             Persona::UxDesigner => {
+    |
+error[E0433]: failed to resolve: could not find `Persona` in `super`
+   --> src/wizard/llm.rs:106:20
+    |
+106 |             super::Persona::ComplianceOfficer => {
+    |                    ^^^^^^^ could not find `Persona` in `super`
+    |
+help: consider importing this enum through its public re-export
+    |
+6   + use crate::Persona;
+    |
+help: if you import `Persona`, refer to it directly
+    |
+106 -             super::Persona::ComplianceOfficer => {
+106 +             Persona::ComplianceOfficer => {
+    |
+warning: unused import: `MultiSelect`
+ --> src/main.rs:3:55
+  |
+3 | use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect, Select};
+  |                                                       ^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+warning: unused import: `session::Session`
+  --> src/wizard/mod.rs:13:9
+   |
+13 | pub use session::Session;
+   |         ^^^^^^^^^^^^^^^^
+warning: unused import: `Template`
+  --> src/main.rs:14:24
+   |
+14 | use wizard::template::{Template, TemplateRepository};
+   |                        ^^^^^^^^
+error[E0107]: missing generics for struct `Client`
+  --> src/wizard/llm.rs:43:13
+   |
+43 |     client: Client,
+   |             ^^^^^^ expected 1 generic argument
+   |
+note: struct defined here, with 1 generic parameter: `C`
+  --> /Users/dovcaspi/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/async-openai-0.14.3/src/client.rs:20:12
+   |
+20 | pub struct Client<C: Config> {
+   |            ^^^^^^ -
+help: add missing generic argument
+   |
+43 |     client: Client<C>,
+   |                   +++
+error[E0369]: binary operation `!=` cannot be applied to type `SessionState`
+   --> src/wizard/session.rs:135:31
+    |
+135 |         if self.session.state != SessionState::Questioning {
+    |            ------------------ ^^ ------------------------- SessionState
+    |            |
+    |            SessionState
+    |
+note: an implementation of `PartialEq` might be missing for `SessionState`
+   --> src/wizard/session.rs:14:1
+    |
+14  | pub enum SessionState {
+    | ^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `SessionState` with `#[derive(PartialEq)]`
+    |
+14  + #[derive(PartialEq)]
+15  | pub enum SessionState {
+    |
+error[E0599]: no method named `model` found for struct `CreateChatCompletionRequest` in the current scope
+   --> src/wizard/llm.rs:188:14
+    |
+187 |           let request = CreateChatCompletionRequest::default()
+    |  _______________________-
+188 | |             .model(&self.config.model)
+    | |             -^^^^^-------------------- help: remove the arguments
+    | |             ||
+    | |_____________|field, not a method
+    |
+error[E0599]: no method named `clone` found for struct `LlmClient` in the current scope
+   --> src/wizard/session.rs:117:68
+    |
+117 | ...new(llm_client.clone());
+    |                   ^^^^^ method not found in `LlmClient`
+    |
+   ::: src/wizard/llm.rs:41:1
+    |
+41  | pub struct LlmClient {
+    | -------------------- method `clone` not found for this struct
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following trait defines an item `clone`, perhaps you need to implement it:
+            candidate #1: `Clone`
+error[E0599]: no method named `clone` found for struct `LlmClient` in the current scope
+   --> src/wizard/session.rs:118:64
+    |
+118 |         let output_generator = OutputGenerator::new(llm_client.clone());
+    |                                                                ^^^^^ method not found in `LlmClient`
+    |
+   ::: src/wizard/llm.rs:41:1
+    |
+41  | pub struct LlmClient {
+    | -------------------- method `clone` not found for this struct
+    |
+    = help: items from traits can only be used if the trait is implemented and in scope
+    = note: the following trait defines an item `clone`, perhaps you need to implement it:
+            candidate #1: `Clone`
+error[E0369]: binary operation `!=` cannot be applied to type `SessionState`
+   --> src/wizard/session.rs:152:31
+    |
+152 |         if self.session.state != SessionState::Questioning {
+    |            ------------------ ^^ ------------------------- SessionState
+    |            |
+    |            SessionState
+    |
+note: an implementation of `PartialEq` might be missing for `SessionState`
+   --> src/wizard/session.rs:14:1
+    |
+14  | pub enum SessionState {
+    | ^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `SessionState` with `#[derive(PartialEq)]`
+    |
+14  + #[derive(PartialEq)]
+15  | pub enum SessionState {
+    |
+error[E0369]: binary operation `==` cannot be applied to type `SessionState`
+   --> src/wizard/session.rs:219:28
+    |
+219 |         self.session.state == SessionState::Completed
+    |         ------------------ ^^ ----------------------- SessionState
+    |         |
+    |         SessionState
+    |
+note: an implementation of `PartialEq` might be missing for `SessionState`
+   --> src/wizard/session.rs:14:1
+    |
+14  | pub enum SessionState {
+    | ^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `SessionState` with `#[derive(PartialEq)]`
+    |
+14  + #[derive(PartialEq)]
+15  | pub enum SessionState {
+    |
+error[E0369]: binary operation `==` cannot be applied to type `SessionState`
+   --> src/wizard/session.rs:224:28
+    |
+224 |         self.session.state == SessionState::Error
+    |         ------------------ ^^ ------------------- SessionState
+    |         |
+    |         SessionState
+    |
+note: an implementation of `PartialEq` might be missing for `SessionState`
+   --> src/wizard/session.rs:14:1
+    |
+14  | pub enum SessionState {
+    | ^^^^^^^^^^^^^^^^^^^^^ must implement `PartialEq`
+help: consider annotating `SessionState` with `#[derive(PartialEq)]`
+    |
+14  + #[derive(PartialEq)]
+15  | pub enum SessionState {
+    |
+error[E0599]: no method named `with_api_key` found for struct `Client` in the current scope
+  --> src/wizard/llm.rs:58:27
+   |
+58 |             Client::new().with_api_key(api_key)
+   |                           ^^^^^^^^^^^^ method not found in `Client<OpenAIConfig>`
+Some errors have detailed explanations: E0107, E0369, E0432, E0433, E0599.
+For more information about an error, try `rustc --explain E0107`.
+warning: `Projector` (bin "Projector") generated 3 warnings
+error: could not compile `Projector` (bin "Projector") due to 17 previous errors; 3 warnings emitted
