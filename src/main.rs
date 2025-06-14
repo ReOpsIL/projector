@@ -26,7 +26,7 @@ enum Commands {
     /// Start a new wizard session
     New {
         /// Starting hints for the wizard
-        #[clap(short, long)]
+        #[clap(short = 'i', long)]
         hints: Option<String>,
 
         /// Domain for the project
