@@ -49,7 +49,11 @@ pub struct Question {
 
 impl Question {
     /// Create a new multiple choice question
-    pub fn multiple_choice(id: impl Into<String>, text: impl Into<String>, options: Vec<String>) -> Self {
+    pub fn multiple_choice(
+        id: impl Into<String>,
+        text: impl Into<String>,
+        options: Vec<String>,
+    ) -> Self {
         Self {
             id: id.into(),
             text: text.into(),
@@ -116,7 +120,10 @@ impl QuestionGenerator {
     }
 
     /// Generate the next question based on the current context
-    pub async fn generate_next_question(&self, context: &crate::wizard::Context) -> anyhow::Result<Question> {
+    pub async fn generate_next_question(
+        &self,
+        context: &crate::wizard::Context,
+    ) -> anyhow::Result<Question> {
         // Use the LLM to generate the next question based on the context
         self.llm_client.generate_question(context).await
     }

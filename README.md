@@ -45,7 +45,15 @@ projector continue --session <SESSION_FILE> [--output <OUTPUT>]
 projector templates
 ```
 
+### Listing domains
+
+```bash
+projector domains
+```
+
 ## Configuration
+
+### LLM Provider
 
 Projector uses OpenRouter as its LLM provider. You'll need to set up your API key in your environment:
 
@@ -58,6 +66,23 @@ You can also create a `.env` file in the project directory with the following co
 ```
 OPENROUTER_API_KEY=your_api_key_here
 ```
+
+### Domains
+
+Projector supports 100 random domains out of the box, but you can also define your own domains in a configuration file. The configuration file is a JSON file with the following structure:
+
+```json
+{
+  "domains": [
+    "Domain1",
+    "Domain2",
+    "Domain3",
+    "..."
+  ]
+}
+```
+
+By default, Projector looks for the configuration file at `~/.config/projector/config.json` on Unix-like systems or `%USERPROFILE%\.config\projector\config.json` on Windows. You can create this file manually or use the default domains that come with Projector.
 
 ## Models
 

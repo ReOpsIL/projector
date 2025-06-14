@@ -37,7 +37,7 @@ impl ConfidenceLevel {
             _ => None,
         }
     }
-    
+
     /// Get the emoji representation of the confidence level
     pub fn emoji(&self) -> &'static str {
         match self {
@@ -81,35 +81,47 @@ impl ProjectDefinition {
             timestamp: chrono::Utc::now(),
         }
     }
-    
+
     /// Add a section to the project definition
-    pub fn add_section(&mut self, title: impl Into<String>, content: impl Into<String>, confidence: ConfidenceLevel) {
+    pub fn add_section(
+        &mut self,
+        title: impl Into<String>,
+        content: impl Into<String>,
+        confidence: ConfidenceLevel,
+    ) {
         self.sections.push(ProjectSection {
             title: title.into(),
             content: content.into(),
             confidence,
         });
     }
-    
+
     /// Convert the project definition to a Markdown string
     pub fn to_markdown(&self) -> String {
         let mut markdown = String::new();
-        
+
         // Add title
         markdown.push_str(&format!("# {}\n\n", self.name));
-        
+
         // Add timestamp
-        markdown.push_str(&format!("*Generated on: {}*\n\n", self.timestamp.format("%Y-%m-%d %H:%M:%S UTC")));
-        
+        markdown.push_str(&format!(
+            "*Generated on: {}*\n\n",
+            self.timestamp.format("%Y-%m-%d %H:%M:%S UTC")
+        ));
+
         // Add sections
         for section in &self.sections {
-            markdown.push_str(&format!("## {} {}\n\n", section.title, section.confidence.emoji()));
+            markdown.push_str(&format!(
+                "## {} {}\n\n",
+                section.title,
+                section.confidence.emoji()
+            ));
             markdown.push_str(&format!("{}\n\n", section.content));
         }
-        
+
         markdown
     }
-    
+
     /// Save the project definition to a file
     pub fn save_to_file(&self, path: impl AsRef<Path>) -> Result<()> {
         let markdown = self.to_markdown();
@@ -129,43 +141,51 @@ impl OutputGenerator {
     pub fn new(llm_client: LlmClient) -> Self {
         Self { llm_client }
     }
-    
+
     /// Generate a project definition from the context
-    pub async fn generate_project_definition(&self, context: &Context) -> Result<ProjectDefinition> {
+    pub async fn generate_project_definition(
+        &self,
+        context: &Context,
+    ) -> Result<ProjectDefinition> {
         // Use the LLM to generate the project definition
         let markdown = self.llm_client.generate_project_definition(context).await?;
-        
+
         // Parse the markdown to extract sections and confidence levels
         self.parse_markdown_definition(&markdown)
     }
-    
+
     /// Parse the markdown project definition to extract sections and confidence levels
     fn parse_markdown_definition(&self, markdown: &str) -> Result<ProjectDefinition> {
         // Extract the project name from the first heading
         let lines: Vec<&str> = markdown.lines().collect();
-        let project_name = lines.iter()
+        let project_name = lines
+            .iter()
             .find(|line| line.starts_with("# "))
             .map(|line| line[2..].trim().to_string())
             .unwrap_or_else(|| "LLM Project Definition".to_string());
-        
+
         let mut definition = ProjectDefinition::new(project_name);
-        
+
         // Extract sections
         let mut current_section_title = String::new();
         let mut current_section_content = String::new();
         let mut current_confidence = ConfidenceLevel::Medium;
-        
+
         for line in lines {
             if line.starts_with("## ") {
                 // Save the previous section if it exists
                 if !current_section_title.is_empty() && !current_section_content.is_empty() {
-                    definition.add_section(current_section_title, current_section_content, current_confidence);
+                    definition.add_section(
+                        current_section_title,
+                        current_section_content,
+                        current_confidence,
+                    );
                     current_section_content = String::new();
                 }
-                
+
                 // Parse the new section title and confidence
                 let title_line = line[3..].trim();
-                
+
                 // Extract confidence from emojis or explicit markers
                 current_confidence = if title_line.contains("⭐") {
                     ConfidenceLevel::VeryHigh
@@ -190,7 +210,7 @@ impl OutputGenerator {
                 } else {
                     ConfidenceLevel::Medium // Default
                 };
-                
+
                 // Clean the title by removing confidence markers
                 current_section_title = title_line
                     .replace("⭐", "")
@@ -211,12 +231,16 @@ impl OutputGenerator {
                 current_section_content.push('\n');
             }
         }
-        
+
         // Add the last section if it exists
         if !current_section_title.is_empty() && !current_section_content.is_empty() {
-            definition.add_section(current_section_title, current_section_content, current_confidence);
+            definition.add_section(
+                current_section_title,
+                current_section_content,
+                current_confidence,
+            );
         }
-        
+
         Ok(definition)
     }
 }

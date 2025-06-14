@@ -1,6 +1,6 @@
 use anyhow::{Context as _, Result};
 use clap::{Parser, Subcommand};
-use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect, Select};
+use dialoguer::{theme::ColorfulTheme, Confirm, Input, Select};
 use dotenv::dotenv;
 use std::path::PathBuf;
 use tokio::runtime::Runtime;
@@ -11,7 +11,7 @@ use wizard::context::{Context, Persona};
 use wizard::llm::{LlmClient, LlmConfig};
 use wizard::question::QuestionType;
 use wizard::session::{Session, SessionManager};
-use wizard::template::{Template, TemplateRepository};
+use wizard::template::TemplateRepository;
 
 /// LLM-Powered Dynamic Project Definition Wizard
 #[derive(Parser)]
@@ -61,6 +61,8 @@ enum Commands {
     },
     /// List available templates
     Templates,
+    /// List available domains
+    Domains,
 }
 
 fn main() -> Result<()> {
@@ -82,11 +84,14 @@ fn main() -> Result<()> {
             template,
             persona,
             output,
-        } => runtime.block_on(new_session(hints, domain, questions, template, persona, output)),
+        } => runtime.block_on(new_session(
+            hints, domain, questions, template, persona, output,
+        )),
         Commands::Continue { session, output } => {
             runtime.block_on(continue_session(session, output))
         }
         Commands::Templates => list_templates(),
+        Commands::Domains => list_domains(),
     }
 }
 
@@ -104,10 +109,12 @@ async fn new_session(
     // Create LLM client
     let llm_client = create_llm_client()?;
 
+    // Create repository
+    let repo = TemplateRepository::new();
+
     // Create session
     let mut session = if let Some(template_name) = template_name {
         // Create session from template
-        let repo = TemplateRepository::new();
         let template = repo
             .get_template(&template_name)
             .context(format!("Template '{}' not found", template_name))?;
@@ -126,8 +133,24 @@ async fn new_session(
         }
 
         // Set domain if provided
-        if let Some(domain) = domain {
-            context = Context::with_domain(domain);
+        if let Some(domain_str) = domain {
+            // Validate domain
+            let domains = repo.get_all_domains();
+            let domain_valid = domains.iter().any(|d| d.to_string() == domain_str);
+
+            if !domain_valid {
+                println!(
+                    "Warning: Domain '{}' is not recognized. Using it as a custom domain.",
+                    domain_str
+                );
+                println!("Available domains:");
+                for (i, d) in domains.iter().enumerate() {
+                    println!("{}. {}", i + 1, d);
+                }
+                println!();
+            }
+
+            context = Context::with_domain(domain_str);
         }
 
         Session::with_context(context)
@@ -167,8 +190,7 @@ async fn continue_session(session_path: PathBuf, output_path: Option<PathBuf>) -
     println!("🧙 Continuing LLM-Powered Project Definition Wizard");
 
     // Load session
-    let session = Session::load_from_file(session_path)
-        .context("Failed to load session file")?;
+    let session = Session::load_from_file(session_path).context("Failed to load session file")?;
 
     // Create LLM client
     let llm_client = create_llm_client()?;
@@ -191,6 +213,24 @@ fn list_templates() -> Result<()> {
             println!("{}. {} ({})", i + 1, template.name, template.domain);
             println!("   {}", template.description);
             println!();
+        }
+    }
+
+    Ok(())
+}
+
+/// List available domains
+fn list_domains() -> Result<()> {
+    println!("🧙 Available Domains");
+
+    let repo = TemplateRepository::new();
+    let domains = repo.get_all_domains();
+
+    if domains.is_empty() {
+        println!("No domains available");
+    } else {
+        for (i, domain) in domains.iter().enumerate() {
+            println!("{}. {}", i + 1, domain);
         }
     }
 
@@ -223,7 +263,10 @@ async fn run_wizard(
 
     let theme = ColorfulTheme::default();
 
-    println!("Starting wizard session with {} questions", session_manager.max_questions());
+    println!(
+        "Starting wizard session with {} questions",
+        session_manager.max_questions()
+    );
     println!("Type 'back' to go back to a previous question");
     println!("Type 'quit' to exit the wizard");
     println!();
@@ -249,7 +292,12 @@ async fn run_wizard(
         };
 
         // Display question
-        println!("Question {}/{}: {}", current_count + 1, max_questions, question.text);
+        println!(
+            "Question {}/{}: {}",
+            current_count + 1,
+            max_questions,
+            question.text
+        );
 
         if let Some(help_text) = &question.help_text {
             println!("Hint: {}", help_text);
@@ -283,9 +331,7 @@ async fn run_wizard(
             }
             QuestionType::RatingScale => {
                 if let Some((min, max)) = question.scale {
-                    let options: Vec<String> = (min..=max)
-                        .map(|n| format!("{}", n))
-                        .collect();
+                    let options: Vec<String> = (min..=max).map(|n| format!("{}", n)).collect();
                     let selection = Select::with_theme(&theme)
                         .items(&options)
                         .default(0)

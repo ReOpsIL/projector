@@ -141,7 +141,10 @@ impl SessionManager {
             anyhow::bail!("Maximum number of questions reached");
         }
 
-        let question = self.question_generator.generate_next_question(&self.session.context).await?;
+        let question = self
+            .question_generator
+            .generate_next_question(&self.session.context)
+            .await?;
         self.session.current_question = Some(question);
 
         Ok(self.session.current_question.as_ref().unwrap())
@@ -185,7 +188,10 @@ impl SessionManager {
     pub async fn generate_project_definition(&mut self) -> Result<String> {
         self.session.state = SessionState::Generating;
 
-        let project_definition = self.output_generator.generate_project_definition(&self.session.context).await?;
+        let project_definition = self
+            .output_generator
+            .generate_project_definition(&self.session.context)
+            .await?;
         let markdown = project_definition.to_markdown();
 
         self.session.output = Some(markdown.clone());

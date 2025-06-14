@@ -148,17 +148,17 @@ impl Context {
     /// Get all answers as a formatted string for LLM context
     pub fn get_context_string(&self) -> String {
         let mut context = String::new();
-        
+
         // Add starting hints if available
         if let Some(hints) = &self.starting_hints {
             context.push_str(&format!("Starting hints: {}\n\n", hints));
         }
-        
+
         // Add domain if available
         if let Some(domain) = &self.domain {
             context.push_str(&format!("Domain: {}\n\n", domain));
         }
-        
+
         // Add question-answer history
         context.push_str("Previous questions and answers:\n");
         for (i, answer) in self.history.iter().enumerate() {
@@ -170,7 +170,7 @@ impl Context {
                 answer.response
             ));
         }
-        
+
         context
     }
 

@@ -4,13 +4,16 @@
 //! questions and project definitions.
 
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::fs;
+use std::io::Write;
 
 use super::{Context, Question};
-use crate::wizard::question::QuestionType;
 use crate::wizard::context::Persona;
+use crate::wizard::question::QuestionType;
 
 /// Configuration for the LLM client
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -28,7 +31,7 @@ pub struct LlmConfig {
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
-            model: "google/gemini-2.5-flash-preview-05-20".to_string(),
+            model: "google/gemini-2.5-pro-preview-06-05".to_string(),
             temperature: 0.7,
             max_tokens: 2000,
             api_key: None,
@@ -116,27 +119,27 @@ impl LlmClient {
     fn create_question_prompt(&self, context: &Context) -> Vec<ChatMessage> {
         let system_prompt = match context.persona {
             Persona::Default => {
-                "You are an intelligent project definition wizard that helps users define LLM-based applications. \
+                "You are an intelligent project definition wizard that helps users define applications. \
                 Generate thoughtful, context-aware questions to understand the user's project requirements. \
                 Your questions should build upon previous answers and help create a comprehensive project definition."
             }
             Persona::ProductManager => {
-                "You are a Product Manager helping to define an LLM-based application. \
+                "You are a Product Manager helping to define an application. \
                 Ask questions focused on user needs, market fit, success metrics, and product roadmap. \
                 Your goal is to ensure the project has clear objectives and delivers value to users."
             }
             Persona::LlmArchitect => {
-                "You are an LLM Architect helping to define an LLM-based application. \
+                "You are an software architect helping to define an application. \
                 Ask technical questions about model selection, prompt engineering, data requirements, and system architecture. \
                 Your goal is to ensure the project is technically feasible and optimally designed."
             }
             Persona::UxDesigner => {
-                "You are a UX Designer helping to define an LLM-based application. \
+                "You are a UX Designer helping to define an application. \
                 Ask questions about user experience, interface design, user flows, and accessibility. \
                 Your goal is to ensure the project delivers an excellent user experience."
             }
             Persona::ComplianceOfficer => {
-                "You are a Compliance Officer helping to define an LLM-based application. \
+                "You are a Compliance Officer helping to define an application. \
                 Ask questions about data privacy, ethical considerations, regulatory requirements, and risk mitigation. \
                 Your goal is to ensure the project complies with relevant regulations and ethical standards."
             }
@@ -145,7 +148,7 @@ impl LlmClient {
         let context_str = context.get_context_string();
 
         let user_prompt = format!(
-            "Based on the following context, generate the next question to ask the user about their LLM-based project. \
+            "Based on the following context, generate the next question to ask the user about their project. \
             The question should help gather more information to create a comprehensive project definition. \
             \n\nCONTEXT:\n{}\n\n\
             Return your response as a JSON object with the following structure:\n\
@@ -174,13 +177,13 @@ impl LlmClient {
 
     /// Create a prompt for generating a project definition
     fn create_project_definition_prompt(&self, context: &Context) -> Vec<ChatMessage> {
-        let system_prompt = "You are an intelligent project definition wizard that helps users define LLM-based applications. \
+        let system_prompt = "You are an intelligent project definition wizard that helps users define applications. \
             Based on the user's answers to your questions, generate a comprehensive project definition document in Markdown format.";
 
         let context_str = context.get_context_string();
 
         let user_prompt = format!(
-            "Based on the following context, generate a comprehensive project definition document for an LLM-based application. \
+            "Based on the following context, generate a comprehensive project definition document for an application. \
             The document should include all the sections mentioned below and be formatted in Markdown.\n\n\
             CONTEXT:\n{}\n\n\
             Include the following sections in the project definition:\n\
@@ -222,7 +225,7 @@ impl LlmClient {
         // Create headers
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        
+
         if let Some(api_key) = &self.config.api_key {
             headers.insert(
                 AUTHORIZATION,
@@ -231,7 +234,8 @@ impl LlmClient {
         }
 
         // Send request to OpenRouter API
-        let response = self.client
+        let response = self
+            .client
             .post("https://openrouter.ai/api/v1/chat/completions")
             .headers(headers)
             .json(&request)
@@ -249,8 +253,17 @@ impl LlmClient {
 
     /// Parse the LLM response to extract a question
     fn parse_question_response(&self, response: &str) -> Result<Question> {
+        let response = response.trim().replace("```json", "").replace("```", "");
         // Try to parse the response as JSON
-        let parsed: Value = serde_json::from_str(response)
+        let local_now: DateTime<Local> = Local::now();
+        let formatted_local: String = local_now.format("%Y_%m_%d_%H_%M_%S").to_string();
+
+        fs::File::create_new(format!("response_{}.json", formatted_local))
+            .unwrap()
+            .write_all(response.as_bytes())
+            .unwrap();
+
+        let parsed: Value = serde_json::from_str(response.as_str())
             .map_err(|e| anyhow::anyhow!("Failed to parse LLM response as JSON: {}", e))?;
 
         // Extract the question type
