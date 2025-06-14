@@ -4,10 +4,7 @@
 //! questions and project definitions.
 
 use anyhow::Result;
-use async_openai::{
-    types::{ChatCompletionRequestMessage, ChatCompletionRequestMessageArgs, CreateChatCompletionRequest, Role},
-    Client,
-};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -31,7 +28,7 @@ pub struct LlmConfig {
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
-            model: "gpt-4".to_string(),
+            model: "google/gemini-2.5-flash-preview-05-20".to_string(),
             temperature: 0.7,
             max_tokens: 2000,
             api_key: None,
@@ -39,11 +36,48 @@ impl Default for LlmConfig {
     }
 }
 
+/// Role for a chat message
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Role {
+    System,
+    User,
+    Assistant,
+}
+
+/// A message in a chat conversation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatMessage {
+    pub role: Role,
+    pub content: String,
+}
+
+/// Request for chat completion
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatCompletionRequest {
+    pub model: String,
+    pub messages: Vec<ChatMessage>,
+    pub temperature: Option<f32>,
+    pub max_tokens: Option<u16>,
+}
+
+/// Response from chat completion
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatCompletionResponse {
+    pub choices: Vec<ChatCompletionChoice>,
+}
+
+/// A choice in a chat completion response
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChatCompletionChoice {
+    pub message: ChatMessage,
+}
+
 /// Client for interacting with the LLM API
 #[derive(Clone)]
 pub struct LlmClient {
-    /// The OpenAI client
-    client: Client<async_openai::config::OpenAIConfig>,
+    /// The HTTP client
+    client: reqwest::Client,
     /// Configuration for the LLM
     config: LlmConfig,
 }
@@ -57,14 +91,7 @@ impl LlmClient {
 
     /// Create a new LLM client with a custom configuration
     pub fn with_config(config: LlmConfig) -> Result<Self> {
-        let client = if let Some(api_key) = &config.api_key {
-            let openai_config = async_openai::config::OpenAIConfig::new()
-                .with_api_key(api_key);
-            Client::with_config(openai_config)
-        } else {
-            Client::new()
-        };
-
+        let client = reqwest::Client::new();
         Ok(Self { client, config })
     }
 
@@ -86,7 +113,7 @@ impl LlmClient {
     }
 
     /// Create a prompt for generating a question
-    fn create_question_prompt(&self, context: &Context) -> Vec<ChatCompletionRequestMessage> {
+    fn create_question_prompt(&self, context: &Context) -> Vec<ChatMessage> {
         let system_prompt = match context.persona {
             Persona::Default => {
                 "You are an intelligent project definition wizard that helps users define LLM-based applications. \
@@ -134,21 +161,19 @@ impl LlmClient {
         );
 
         vec![
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::System)
-                .content(system_prompt)
-                .build()
-                .unwrap(),
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::User)
-                .content(user_prompt)
-                .build()
-                .unwrap(),
+            ChatMessage {
+                role: Role::System,
+                content: system_prompt.to_string(),
+            },
+            ChatMessage {
+                role: Role::User,
+                content: user_prompt,
+            },
         ]
     }
 
     /// Create a prompt for generating a project definition
-    fn create_project_definition_prompt(&self, context: &Context) -> Vec<ChatCompletionRequestMessage> {
+    fn create_project_definition_prompt(&self, context: &Context) -> Vec<ChatMessage> {
         let system_prompt = "You are an intelligent project definition wizard that helps users define LLM-based applications. \
             Based on the user's answers to your questions, generate a comprehensive project definition document in Markdown format.";
 
@@ -174,33 +199,49 @@ impl LlmClient {
         );
 
         vec![
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::System)
-                .content(system_prompt)
-                .build()
-                .unwrap(),
-            ChatCompletionRequestMessageArgs::default()
-                .role(Role::User)
-                .content(user_prompt)
-                .build()
-                .unwrap(),
+            ChatMessage {
+                role: Role::System,
+                content: system_prompt.to_string(),
+            },
+            ChatMessage {
+                role: Role::User,
+                content: user_prompt,
+            },
         ]
     }
 
     /// Send a chat request to the LLM API
-    async fn send_chat_request(&self, messages: Vec<ChatCompletionRequestMessage>) -> Result<String> {
-        let mut request = CreateChatCompletionRequest::default();
-        request.model = self.config.model.clone();
-        request.messages = messages;
-        request.temperature = Some(self.config.temperature);
-        request.max_tokens = Some(self.config.max_tokens);
+    async fn send_chat_request(&self, messages: Vec<ChatMessage>) -> Result<String> {
+        let request = ChatCompletionRequest {
+            model: self.config.model.clone(),
+            messages,
+            temperature: Some(self.config.temperature),
+            max_tokens: Some(self.config.max_tokens),
+        };
 
-        let response = self.client.chat().create(request).await?;
+        // Create headers
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        
+        if let Some(api_key) = &self.config.api_key {
+            headers.insert(
+                AUTHORIZATION,
+                HeaderValue::from_str(&format!("Bearer {}", api_key))?,
+            );
+        }
+
+        // Send request to OpenRouter API
+        let response = self.client
+            .post("https://openrouter.ai/api/v1/chat/completions")
+            .headers(headers)
+            .json(&request)
+            .send()
+            .await?
+            .json::<ChatCompletionResponse>()
+            .await?;
 
         if let Some(choice) = response.choices.first() {
-            if let Some(content) = &choice.message.content {
-                return Ok(content.clone());
-            }
+            return Ok(choice.message.content.clone());
         }
 
         anyhow::bail!("No response content from LLM")

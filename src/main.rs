@@ -200,7 +200,7 @@ fn list_templates() -> Result<()> {
 /// Create an LLM client
 fn create_llm_client() -> Result<LlmClient> {
     // Get API key from environment
-    let api_key = std::env::var("OPENAI_API_KEY").ok();
+    let api_key = std::env::var("OPENROUTER_API_KEY").ok();
 
     // Create config
     let config = LlmConfig {
