@@ -41,13 +41,15 @@ pub struct Session {
     pub output: Option<String>,
 }
 
+const MAX_QUESTIONS: usize =25;
+
 impl Session {
     /// Create a new session
     pub fn new() -> Self {
         Self {
             context: Context::new(),
             state: SessionState::Initial,
-            max_questions: 10, // Default max questions
+            max_questions: MAX_QUESTIONS, // Default max questions
             current_question: None,
             output: None,
         }
@@ -58,7 +60,7 @@ impl Session {
         Self {
             context,
             state: SessionState::Initial,
-            max_questions: 10,
+            max_questions: MAX_QUESTIONS,
             current_question: None,
             output: None,
         }
@@ -72,7 +74,7 @@ impl Session {
         Self {
             context,
             state: SessionState::Initial,
-            max_questions: 10,
+            max_questions: MAX_QUESTIONS,
             current_question: None,
             output: None,
         }

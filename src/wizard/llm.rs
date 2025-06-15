@@ -31,9 +31,9 @@ pub struct LlmConfig {
 impl Default for LlmConfig {
     fn default() -> Self {
         Self {
-            model: "google/gemini-2.5-pro-preview-06-05".to_string(),
-            temperature: 0.7,
-            max_tokens: 2000,
+            model: "google/gemma-3-27b-it:free".to_string(),
+            temperature: 1.0,
+            max_tokens: 4096,
             api_key: None,
         }
     }
@@ -145,22 +145,55 @@ impl LlmClient {
             }
         };
 
+        let persona_name = format!("{:?}", context.persona); // "ProductManager", "UxDesigner", etc.
         let context_str = context.get_context_string();
 
         let user_prompt = format!(
-            "Based on the following context, generate the next question to ask the user about their project. \
-            The question should help gather more information to create a comprehensive project definition. \
-            \n\nCONTEXT:\n{}\n\n\
-            Return your response as a JSON object with the following structure:\n\
-            {{\n\
-              \"question_type\": \"MultipleChoice\" | \"YesNo\" | \"RatingScale\" | \"FreeText\",\n\
-              \"question_text\": \"The text of the question\",\n\
-              \"options\": [\"Option 1\", \"Option 2\", ...] (only for MultipleChoice),\n\
-              \"scale\": [min, max] (only for RatingScale),\n\
-              \"help_text\": \"Optional help text for the question\"\n\
-            }}\n\
-            Make sure the question is relevant to the context and builds upon previous answers.",
-            context_str
+            r#"Your task is to generate the single best question to ask a user to help define their software project.
+                You are acting as a {persona_name}.
+
+                **Rules:**
+                1.  Your entire response MUST be a single, valid JSON object. Do not include any explanatory text, markdown formatting, or any characters before or after the JSON.
+                2.  The question must logically follow the provided context and aim to fill in missing information.
+                3.  If the context is empty or sparse, ask a broad, foundational question.
+                4.  If the context is detailed, ask a more specific question to clarify a point or explore a related area.
+                5.  Prefer structured questions (`MultipleChoice`, `YesNo`, `RatingScale`) when possible to guide the user, but use `FreeText` for open-ended topics.
+                6. Number of answer options should be in range of 4 to 10 
+                **Context of the conversation so far:**
+                ---
+                {context_str}
+                ---
+
+                **JSON Output Structure:**
+                {{
+                  "question_type": "MultipleChoice" | "YesNo" | "RatingScale" | "FreeText",
+                  "question_text": "The text of the question to the user.",
+                  "options": ["Option 1", "Option 2", ...] // (Required for MultipleChoice, otherwise omit)
+                  "scale": [min_number, max_number]     // (Required for RatingScale, otherwise omit)
+                  "help_text": "Optional clarifying text for the user." // (Optional, include if the question is complex)
+                }}
+
+                **Example:**
+                If the user just said "I want to build a chatbot for my website", a good follow-up question would be:
+
+                ```json
+                {{
+                  "question_type": "MultipleChoice",
+                  "question_text": "What is the primary goal of your website chatbot?",
+                  "options": [
+                    "Answering customer support questions",
+                    "Generating sales leads",
+                    "Guiding users through the website",
+                    .
+                    .
+                    .
+                    "Something else ?"
+                  ],
+                  "help_text": "This will help us understand the core functionality and success metrics for the chatbot."
+                }}
+                Now, based on the provided context, generate the next question as a JSON object."#,
+            persona_name = persona_name,
+            context_str = context_str
         );
 
         vec![
@@ -183,22 +216,71 @@ impl LlmClient {
         let context_str = context.get_context_string();
 
         let user_prompt = format!(
-            "Based on the following context, generate a comprehensive project definition document for an application. \
-            The document should include all the sections mentioned below and be formatted in Markdown.\n\n\
-            CONTEXT:\n{}\n\n\
-            Include the following sections in the project definition:\n\
-            1. Project Name and Short Summary\n\
-            2. Use Cases and Goals (with examples or scenarios)\n\
-            3. Target User Profile(s)\n\
-            4. Required Inputs and Expected Outputs\n\
-            5. Functional Components/Modules\n\
-            6. Prompt Engineering Strategy\n\
-            7. Dataset Needs and Sources\n\
-            8. Evaluation Metrics and Success Criteria\n\
-            9. Scalability and Deployment Recommendations\n\
-            10. Ethical and Bias Considerations\n\n\
-            For each section, include a confidence score (1-5) based on the specificity and completeness of the user's answers.",
-            context_str
+            r#"Based on the conversation context provided below, generate a comprehensive Project Definition Document.
+            **Formatting Instructions:**
+            - The entire output must be a single Markdown document.
+            - Use `##` for main section titles.
+            - Use bullet points (`-`) for lists.
+            - Write in a clear, professional, and concise tone suitable for both technical and business stakeholders.
+
+            **Content Instructions:**
+            - You must include every section listed below.
+            - For each section, provide a **Confidence Score** from 1 (low confidence, very little info) to 5 (high confidence, detailed info).
+            - After each confidence score, you MUST provide a brief justification in parentheses. Example: `**Confidence: 2/5** (Reason: The user mentioned a target audience but did not provide specific demographics.)`
+            - If you have insufficient information for a section, state that clearly and explain what information is needed.
+
+            **Conversation Context:**
+            ---
+            {context_str}
+            ---
+
+            **Project Definition Document Structure:**
+
+            ## 1. Project Name and Summary
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content...*
+
+            ## 2. Use Cases and Goals
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content... (include specific user scenarios if possible)*
+
+            ## 3. Target User Profile(s)
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content...*
+
+            ## 4. Required Inputs and Expected Outputs
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content... (Detail what the user provides to the system and what the system returns)*
+
+            ## 5. Functional Components/Modules
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content...*
+
+            ## 6. Prompt Engineering Strategy
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content...*
+
+            ## 7. Dataset Needs and Sources
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content...*
+
+            ## 8. Evaluation Metrics and Success Criteria
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content... (How will we know the project is successful?)*
+
+            ## 9. Scalability and Deployment
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content... (Initial thoughts on technical architecture and scaling)*
+
+            ## 10. Ethical and Bias Considerations
+            - **Confidence: [1-5]/5** (Reason: ...)
+            - *Content...*
+
+            ## 11. Open Questions and Missing Information
+            - **Confidence: N/A**
+            - *Based on the context, list the key pieces of information that are still needed to complete this project definition.*
+            "#,
+            context_str = context_str
         );
 
         vec![
